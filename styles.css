@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap');
 
 :root {
   color: #2f352f;
@@ -32,7 +32,7 @@ button { cursor: pointer; }
   color: #f8f8f4;
   background: #6c8877;
   border-radius: 9px;
-  font-family: 'Gowun Batang', serif;
+  font-family: 'IBM Plex Sans KR', sans-serif;
   font-weight: 700;
 }
 .brand strong { display: block; font-size: 15px; letter-spacing: -.04em; }
@@ -64,29 +64,28 @@ button { cursor: pointer; }
   box-shadow: 0 10px 32px rgba(74, 69, 55, .04);
 }
 .date-line { color: #aaa99f; font: 10px 'DM Mono', monospace; }
-.title {
-  width: 100%;
-  margin-top: 28px;
-  color: #2f352f;
-  background: transparent;
-  border: 0;
-  outline: 0;
-  font: 700 clamp(28px, 4vw, 39px) 'Gowun Batang', serif;
-  letter-spacing: -.06em;
-}
-.title:focus { border-bottom: 1px solid #dfe3d8; }
 .note {
   flex: 1;
   width: 100%;
   min-height: 350px;
-  margin-top: 28px;
+  margin-top: 32px;
   padding: 0;
   resize: none;
   color: #60675e;
-  background: transparent;
+  --line-height: 38.25px;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--line-height) - 1px),
+    #e8e6de calc(var(--line-height) - 1px),
+    #e8e6de var(--line-height)
+  );
+  background-size: 100% var(--line-height);
+  background-position: 0 3px;
   border: 0;
   outline: 0;
-  font: 17px/2.25 'Gowun Batang', serif;
+  font: 17px/var(--line-height) 'IBM Plex Sans KR', sans-serif;
   letter-spacing: -.025em;
 }
 .note::placeholder { color: #c7c8c0; }
@@ -156,8 +155,7 @@ code { padding: 2px 5px; color: #677d6c; background: #e8eee7; border-radius: 3px
   .topbar { height: 66px; padding: 0 17px; }
   .brand small, .save-status, .text-button { display: none; }
   .writing-area { width: calc(100% - 24px); min-height: calc(100vh - 278px); margin: 18px auto 28px; padding: 24px 22px; }
-  .title { margin-top: 23px; font-size: 29px; }
-  .note { margin-top: 23px; font-size: 16px; line-height: 2.1; }
+  .note { margin-top: 24px; --line-height: 33.6px; font-size: 16px; }
   .keyboard-section { width: calc(100% - 24px); }
   .keyboard-heading { display: block; }
   .keyboard-toggle { margin-top: 10px; }

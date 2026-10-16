@@ -1,8 +1,6 @@
 const STORAGE_KEY = 'simple-korean-note';
-const TITLE_KEY = 'simple-korean-note-title';
 
 const note = document.querySelector('#note');
-const title = document.querySelector('#title');
 const keyboard = document.querySelector('#keyboard');
 const saveStatus = document.querySelector('#save-status');
 const characterCount = document.querySelector('#character-count');
@@ -89,7 +87,6 @@ function save() {
   saveTimer = window.setTimeout(() => {
     try {
       localStorage.setItem(STORAGE_KEY, note.value);
-      localStorage.setItem(TITLE_KEY, title.value);
       saveStatus.textContent = '저장됨';
     } catch {
       saveStatus.textContent = '저장할 수 없음';
@@ -253,7 +250,7 @@ function renderKeyboard() {
 }
 
 function copyNote() {
-  const text = `${title.value.trim()}\n\n${note.value}`.trim();
+  const text = note.value.trim();
   const fallbackCopy = () => {
     note.focus();
     note.select();
@@ -271,7 +268,6 @@ function copyNote() {
 }
 
 note.value = readSavedValue(STORAGE_KEY, '');
-title.value = readSavedValue(TITLE_KEY, '오늘의 기록');
 document.querySelector('#date-line').textContent = new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
   month: 'long',
@@ -304,7 +300,6 @@ note.addEventListener('keydown', (event) => {
 });
 
 note.addEventListener('blur', commitComposition);
-title.addEventListener('input', save);
 
 keyboard.addEventListener('mousedown', (event) => {
   const button = event.target.closest('button');
@@ -326,17 +321,16 @@ keyboard.addEventListener('mousedown', (event) => {
 
 document.querySelector('#copy-button').addEventListener('click', copyNote);
 document.querySelector('#clear-button').addEventListener('click', () => {
-  if (!note.value && title.value === '오늘의 기록') return;
+  if (!note.value) return;
   if (!window.confirm('이 노트를 모두 지울까요?')) return;
   composition = null;
-  title.value = '오늘의 기록';
   setText('');
   note.focus();
 });
 
 document.querySelector('#keyboard-toggle').addEventListener('click', (event) => {
-  const isOpen = keyboard.hidden;
-  keyboard.hidden = isOpen;
-  event.currentTarget.textContent = isOpen ? '자판 숨기기' : '자판 보이기';
-  event.currentTarget.setAttribute('aria-expanded', String(isOpen));
+  const shouldShow = keyboard.hidden;
+  keyboard.hidden = !shouldShow;
+  event.currentTarget.textContent = shouldShow ? '자판 숨기기' : '자판 보이기';
+  event.currentTarget.setAttribute('aria-expanded', String(shouldShow));
 });
