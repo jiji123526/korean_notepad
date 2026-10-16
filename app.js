@@ -195,6 +195,7 @@ function replaceTextRange(value, start, end) {
   range.setEnd(endPosition.node, endPosition.offset);
   range.deleteContents();
   if (value) range.insertNode(document.createTextNode(value));
+  note.normalize();
   setSelectionOffsets(start + value.length, start + value.length);
   updateCounts();
   save();
@@ -347,11 +348,27 @@ function replaceComposition(value, start, end) {
 
 function beginComposition(type, value) {
   const { start, end } = getSelectionOffsets();
-  composition = { start, value, initial: type === 'L' ? value : '', vowel: type === 'V' ? value : '', final: '' };
+  composition = {
+    start,
+    value,
+    initial: type === 'L' ? value : '',
+    vowel: type === 'V' ? value : '',
+    final: '',
+    pendingFinal: null,
+  };
   replaceComposition(value, start, end);
 }
 
+function resolvePendingFinal() {
+  if (!composition?.pendingFinal) return;
+  const { first, second } = composition.pendingFinal;
+  const combinedFinal = finalCombinations[first + second];
+  if (!combinedFinal) return;
+  updateComposition({ final: combinedFinal, pendingFinal: null });
+}
+
 function commitComposition() {
+  resolvePendingFinal();
   composition = null;
 }
 
@@ -392,6 +409,17 @@ function processJamo(type, value) {
       return;
     }
 
+    if (composition.pendingFinal) {
+      const { second } = composition.pendingFinal;
+      const insertionPoint = composition.start + composition.value.length;
+      composition.pendingFinal = null;
+      commitComposition();
+      setSelectionOffsets(insertionPoint);
+      beginComposition('L', second);
+      processJamo('V', value);
+      return;
+    }
+
     if (composition.final) {
       const final = composition.final;
       const movableFinal = final.length === 1 ? final : final[0];
@@ -428,6 +456,10 @@ function processJamo(type, value) {
     return;
   }
 
+  if (composition.pendingFinal) {
+    resolvePendingFinal();
+  }
+
   if (!composition.final) {
     updateComposition({ final: value });
     return;
@@ -435,7 +467,7 @@ function processJamo(type, value) {
 
   const combinedFinal = finalCombinations[composition.final + value];
   if (combinedFinal) {
-    updateComposition({ final: combinedFinal });
+    composition.pendingFinal = { first: composition.final, second: value };
   } else {
     commitComposition();
     beginComposition('L', value);
@@ -445,7 +477,9 @@ function processJamo(type, value) {
 function handleBackspace(event) {
   if (!composition) return;
   event.preventDefault();
-  if (composition.final) {
+  if (composition.pendingFinal) {
+    composition.pendingFinal = null;
+  } else if (composition.final) {
     updateComposition({ final: composition.final.length > 1 ? composition.final[0] : '' });
   } else if (composition.vowel) {
     updateComposition({ vowel: '', initial: composition.initial });
@@ -560,7 +594,10 @@ note.addEventListener('input', () => {
 document.addEventListener('selectionchange', () => {
   const selection = window.getSelection();
   if (!selection.rangeCount || !note.contains(selection.anchorNode)) return;
-  if (!selection.isCollapsed) commitComposition();
+  const offsets = getSelectionOffsets();
+  if (!selection.isCollapsed || (composition && offsets.start !== composition.start + composition.value.length)) {
+    commitComposition();
+  }
   updateFormatButtons();
 });
 
