@@ -14,6 +14,7 @@ Open `index.html` in a browser. No server, backend, package install, or build st
 - The note is saved automatically in the browser's `localStorage`.
 - Add quick sticky notes in the page margin. Click a sticky note to open and edit it in the main editor.
 - Click `+ 새 이야기` to create a new centered story with its own linked sticky note.
+- Drag sticky notes freely within the left or right margin; notes can overlap.
 
 The app is intentionally just three runtime files:
 

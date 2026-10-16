@@ -3,8 +3,9 @@ const STICKY_STORAGE_KEY = 'simple-korean-sticky-notes';
 
 const note = document.querySelector('#note');
 const keyboard = document.querySelector('#keyboard');
+const contentLayout = document.querySelector('.content-layout');
+const mainColumn = document.querySelector('.main-column');
 const stickyNotesElement = document.querySelector('#sticky-notes');
-const addStickyButton = document.querySelector('#add-sticky-button');
 const newStoryButton = document.querySelector('#new-story-button');
 const mainNoteButton = document.querySelector('#main-note-button');
 const saveStatus = document.querySelector('#save-status');
@@ -85,6 +86,7 @@ function readStickyNotes() {
     return Array.isArray(saved) ? saved.map((sticky, index) => ({
       ...sticky,
       side: sticky.side || (index % 2 === 0 ? 'left' : 'right'),
+      x: Number.isFinite(sticky.x) ? sticky.x : 12,
       top: Number.isFinite(sticky.top) ? sticky.top : 105 + index * 128,
     })) : [];
   } catch {
@@ -134,8 +136,8 @@ function renderStickyNotes() {
 
 function applyStickyPosition(card, sticky) {
   card.style.top = `${sticky.top}px`;
-  card.style.left = sticky.side === 'left' ? '0' : 'auto';
-  card.style.right = sticky.side === 'right' ? '0' : 'auto';
+  card.style.left = sticky.side === 'left' ? `${sticky.x}px` : 'auto';
+  card.style.right = sticky.side === 'right' ? `${sticky.x}px` : 'auto';
 }
 
 function saveCurrentNote(targetId = activeStickyId, value = note.value) {
@@ -157,6 +159,7 @@ function createStickyRecord() {
     text: '',
     color: ['yellow', 'pink', 'blue', 'green'][stickyColorIndex % 4],
     side: Math.random() < 0.5 ? 'left' : 'right',
+    x: 8 + Math.floor(Math.random() * 42),
     top: 105 + Math.floor(Math.random() * 220),
   };
   stickyColorIndex += 1;
@@ -424,10 +427,22 @@ note.addEventListener('input', () => {
   save();
 });
 
+note.addEventListener('select', () => {
+  if (note.selectionStart !== note.selectionEnd) commitComposition();
+});
+
 note.addEventListener('keydown', (event) => {
-  if (event.key === 'Backspace' && composition) {
-    handleBackspace(event);
-    return;
+  const hasSelection = note.selectionStart !== note.selectionEnd;
+  if (composition && (event.key === 'Backspace' || event.key === 'Delete')) {
+    if (hasSelection) {
+      commitComposition();
+      return;
+    }
+    if (event.key === 'Backspace') {
+      handleBackspace(event);
+      return;
+    }
+    commitComposition();
   }
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
     commitComposition();
@@ -472,29 +487,30 @@ document.querySelector('#clear-button').addEventListener('click', () => {
   note.focus();
 });
 
-addStickyButton.addEventListener('click', addStickyNote);
 mainNoteButton.addEventListener('click', openMainNote);
 
 stickyNotesElement.addEventListener('click', (event) => {
-  if (suppressStickyClick) {
-    suppressStickyClick = false;
-    return;
-  }
-
   const openButton = event.target.closest('[data-open-id]');
   const deleteButton = event.target.closest('[data-delete-id]');
 
-  if (openButton) {
-    openSticky(openButton.dataset.openId);
-    return;
-  }
-
   if (deleteButton) {
+    suppressStickyClick = false;
     const id = deleteButton.dataset.deleteId;
     stickyNotes = stickyNotes.filter((sticky) => sticky.id !== id);
     saveStickyNotes();
     if (activeStickyId === id) openMainNote();
     renderStickyNotes();
+    return;
+  }
+
+  if (suppressStickyClick) {
+    suppressStickyClick = false;
+    return;
+  }
+
+  if (openButton) {
+    openSticky(openButton.dataset.openId);
+    return;
   }
 });
 
@@ -536,12 +552,33 @@ document.addEventListener('pointermove', (event) => {
   const sticky = stickyNotes.find((item) => item.id === dragState.id);
   if (!sticky) return;
 
-  const container = document.querySelector('.content-layout').getBoundingClientRect();
+  const container = contentLayout.getBoundingClientRect();
+  const main = mainColumn.getBoundingClientRect();
   const cardWidth = dragState.card.offsetWidth;
   const cardHeight = dragState.card.offsetHeight;
-  const maxTop = Math.max(0, document.querySelector('.content-layout').scrollHeight - cardHeight);
+  const maxTop = Math.max(0, contentLayout.scrollHeight - cardHeight);
   const nextTop = Math.max(0, Math.min(maxTop, event.clientY - container.top - dragState.offsetY));
-  sticky.side = event.clientX < container.left + container.width / 2 ? 'left' : 'right';
+  const leftMarginWidth = Math.max(0, main.left - container.left);
+  const rightMarginWidth = Math.max(0, container.right - main.right);
+  const leftMax = Math.max(0, leftMarginWidth - cardWidth);
+  const rightMax = Math.max(0, rightMarginWidth - cardWidth);
+  const pointerCardLeft = event.clientX - dragState.offsetX;
+  const wantsLeft = event.clientX < main.left;
+  const wantsRight = event.clientX > main.right;
+
+  if (wantsLeft || wantsRight) {
+    sticky.side = wantsLeft ? 'left' : 'right';
+  } else {
+    const distanceToLeft = Math.abs(event.clientX - main.left);
+    const distanceToRight = Math.abs(event.clientX - main.right);
+    sticky.side = distanceToLeft <= distanceToRight ? 'left' : 'right';
+  }
+
+  if (sticky.side === 'left') {
+    sticky.x = Math.max(0, Math.min(leftMax, pointerCardLeft - container.left));
+  } else {
+    sticky.x = Math.max(0, Math.min(rightMax, container.right - pointerCardLeft - cardWidth));
+  }
   sticky.top = nextTop;
   applyStickyPosition(dragState.card, sticky);
 });
