@@ -82,6 +82,9 @@ let stickyColorIndex = stickyNotes.length;
 let shouldAutoCreateStory = false;
 let resizeState = null;
 let inputMode = readSavedValue(INPUT_MODE_KEY, 'ko');
+let undoStack = [];
+let redoStack = [];
+let historyApplying = false;
 
 function readEditorSize() {
   try {
@@ -180,13 +183,43 @@ function setSelectionOffsets(start, end = start) {
   note.focus();
 }
 
-function setNoteContent(html, fallbackText = '', caret = fallbackText.length) {
+function createSnapshot() {
+  const selection = getSelectionOffsets();
+  return {
+    html: note.innerHTML,
+    activeStickyId,
+    shouldAutoCreateStory,
+    selectionStart: selection.start,
+    selectionEnd: selection.end,
+  };
+}
+
+function snapshotsMatch(first, second) {
+  return first
+    && second
+    && first.html === second.html
+    && first.activeStickyId === second.activeStickyId
+    && first.selectionStart === second.selectionStart
+    && first.selectionEnd === second.selectionEnd;
+}
+
+function recordBeforeEdit() {
+  if (historyApplying) return;
+  const snapshot = createSnapshot();
+  if (!snapshotsMatch(undoStack.at(-1), snapshot)) undoStack.push(snapshot);
+  redoStack = [];
+  if (undoStack.length > 100) undoStack.shift();
+}
+
+function setNoteContent(html, fallbackText = '', caret = fallbackText.length, recordHistory = true) {
+  if (recordHistory) recordBeforeEdit();
   note.innerHTML = html || '';
   if (!note.textContent && fallbackText) note.textContent = fallbackText;
   setSelectionOffsets(caret, caret);
 }
 
 function replaceTextRange(value, start, end) {
+  recordBeforeEdit();
   const selection = window.getSelection();
   const range = document.createRange();
   const startPosition = findTextPosition(start);
@@ -199,6 +232,37 @@ function replaceTextRange(value, start, end) {
   setSelectionOffsets(start + value.length, start + value.length);
   updateCounts();
   save();
+}
+
+function restoreSnapshot(snapshot) {
+  historyApplying = true;
+  activeStickyId = snapshot.activeStickyId;
+  shouldAutoCreateStory = snapshot.shouldAutoCreateStory;
+  note.innerHTML = snapshot.html;
+  setSelectionOffsets(snapshot.selectionStart, snapshot.selectionEnd);
+  updateCounts();
+  renderStickyNotes();
+  historyApplying = false;
+  saveCurrentNote(activeStickyId, getNoteText(), note.innerHTML);
+  saveStatus.textContent = '저장됨';
+}
+
+function undo() {
+  if (!undoStack.length) {
+    showToast('되돌릴 작업이 없어요');
+    return;
+  }
+  redoStack.push(createSnapshot());
+  restoreSnapshot(undoStack.pop());
+}
+
+function redo() {
+  if (!redoStack.length) {
+    showToast('다시 실행할 작업이 없어요');
+    return;
+  }
+  undoStack.push(createSnapshot());
+  restoreSnapshot(redoStack.pop());
 }
 
 function readStickyNotes() {
@@ -518,7 +582,7 @@ function openSticky(id) {
   commitComposition();
   saveCurrentNote();
   activeStickyId = sticky.id;
-  setNoteContent(sticky.html || '', sticky.text);
+  setNoteContent(sticky.html || '', sticky.text, sticky.text.length, false);
   updateCounts();
   renderStickyNotes();
   note.focus();
@@ -531,7 +595,7 @@ function openMainNote() {
   activeStickyId = null;
   shouldAutoCreateStory = false;
   const text = readSavedValue(STORAGE_KEY, '');
-  setNoteContent(readSavedValue(HTML_STORAGE_KEY, ''), text);
+  setNoteContent(readSavedValue(HTML_STORAGE_KEY, ''), text, text.length, false);
   updateCounts();
   shouldAutoCreateStory = !text.trim();
   renderStickyNotes();
@@ -570,7 +634,7 @@ function copyNote() {
 }
 
 const savedNoteText = readSavedValue(STORAGE_KEY, '');
-setNoteContent(readSavedValue(HTML_STORAGE_KEY, ''), savedNoteText);
+setNoteContent(readSavedValue(HTML_STORAGE_KEY, ''), savedNoteText, savedNoteText.length, false);
 shouldAutoCreateStory = !savedNoteText.trim();
 const editorSize = readEditorSize();
 setEditorSize(editorSize.width, editorSize.height, false);
@@ -586,9 +650,14 @@ renderStickyNotes();
 updateInputMode();
 
 note.addEventListener('input', () => {
+  if (historyApplying) return;
   composition = null;
   updateCounts();
   save();
+});
+
+note.addEventListener('beforeinput', () => {
+  recordBeforeEdit();
 });
 
 document.addEventListener('selectionchange', () => {
@@ -603,10 +672,23 @@ document.addEventListener('selectionchange', () => {
 
 note.addEventListener('keydown', (event) => {
   const isShortcut = event.ctrlKey || event.metaKey;
+  const shortcutKey = event.key.toLowerCase();
 
-  if (isShortcut && !event.altKey && ['b', 'i'].includes(event.key.toLowerCase())) {
+  if (isShortcut && !event.altKey && shortcutKey === 'z') {
     event.preventDefault();
-    applyFormat(event.key.toLowerCase() === 'b' ? 'bold' : 'italic');
+    event.shiftKey ? redo() : undo();
+    return;
+  }
+
+  if (isShortcut && !event.altKey && shortcutKey === 'y') {
+    event.preventDefault();
+    redo();
+    return;
+  }
+
+  if (isShortcut && !event.altKey && ['b', 'i'].includes(shortcutKey)) {
+    event.preventDefault();
+    applyFormat(shortcutKey === 'b' ? 'bold' : 'italic');
     return;
   }
 
@@ -675,6 +757,7 @@ function updateFormatButtons() {
 
 function applyFormat(command) {
   commitComposition();
+  recordBeforeEdit();
   note.focus();
   document.execCommand(command, false, null);
   updateFormatButtons();
