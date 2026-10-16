@@ -12,6 +12,8 @@ Open `index.html` in a browser. No server, backend, package install, or build st
 - Use the on-screen keyboard if you do not remember a key.
 - Click `전체 복사` to copy the note into another app.
 - The note is saved automatically in the browser's `localStorage`.
+- Add quick sticky notes in the page margin. Click a sticky note to open and edit it in the main editor.
+- Click `+ 새 이야기` to create a new centered story with its own linked sticky note.
 
 The app is intentionally just three runtime files:
 

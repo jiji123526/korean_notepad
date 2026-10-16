@@ -1,7 +1,12 @@
 const STORAGE_KEY = 'simple-korean-note';
+const STICKY_STORAGE_KEY = 'simple-korean-sticky-notes';
 
 const note = document.querySelector('#note');
 const keyboard = document.querySelector('#keyboard');
+const stickyNotesElement = document.querySelector('#sticky-notes');
+const addStickyButton = document.querySelector('#add-sticky-button');
+const newStoryButton = document.querySelector('#new-story-button');
+const mainNoteButton = document.querySelector('#main-note-button');
 const saveStatus = document.querySelector('#save-status');
 const characterCount = document.querySelector('#character-count');
 const toast = document.querySelector('#toast');
@@ -61,6 +66,10 @@ const keyboardRows = [
 let composition = null;
 let saveTimer;
 let keyboardShifted = false;
+let activeStickyId = null;
+let stickyNotes = readStickyNotes();
+let stickyColorIndex = stickyNotes.length;
+let shouldAutoCreateStory = false;
 
 function readSavedValue(key, fallback) {
   try {
@@ -68,6 +77,101 @@ function readSavedValue(key, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function readStickyNotes() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STICKY_STORAGE_KEY) || '[]');
+    return Array.isArray(saved) ? saved.map((sticky, index) => ({
+      ...sticky,
+      side: sticky.side || (index % 2 === 0 ? 'left' : 'right'),
+      top: Number.isFinite(sticky.top) ? sticky.top : 105 + index * 128,
+    })) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStickyNotes() {
+  try {
+    localStorage.setItem(STICKY_STORAGE_KEY, JSON.stringify(stickyNotes));
+  } catch {
+    saveStatus.textContent = '저장할 수 없음';
+  }
+}
+
+function escapeHtml(value) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function updateStickyPreview(id, value) {
+  const preview = stickyNotesElement.querySelector(`[data-preview-id="${id}"]`);
+  if (preview) preview.textContent = value.trim() || '빈 메모';
+}
+
+function renderStickyNotes() {
+  mainNoteButton.classList.toggle('active', activeStickyId === null);
+  stickyNotesElement.innerHTML = stickyNotes.map((sticky) => `
+    <article class="sticky-card sticky-${sticky.color} ${activeStickyId === sticky.id ? 'active' : ''}" data-card-id="${sticky.id}">
+      <button class="sticky-open" type="button" data-open-id="${sticky.id}">
+        <span class="sticky-preview" data-preview-id="${sticky.id}">${escapeHtml(sticky.text.trim() || '빈 메모')}</span>
+        <small>메모</small>
+      </button>
+      <button class="sticky-delete" type="button" data-delete-id="${sticky.id}" aria-label="메모 삭제">×</button>
+    </article>
+  `).join('');
+
+  stickyNotes.forEach((sticky) => {
+    const card = stickyNotesElement.querySelector(`[data-card-id="${sticky.id}"]`);
+    if (card) applyStickyPosition(card, sticky);
+  });
+}
+
+function applyStickyPosition(card, sticky) {
+  card.style.top = `${sticky.top}px`;
+  card.style.left = sticky.side === 'left' ? '0' : 'auto';
+  card.style.right = sticky.side === 'right' ? '0' : 'auto';
+}
+
+function saveCurrentNote(targetId = activeStickyId, value = note.value) {
+  if (targetId === null) {
+    localStorage.setItem(STORAGE_KEY, value);
+    return;
+  }
+
+  const sticky = stickyNotes.find((item) => item.id === targetId);
+  if (!sticky) return;
+  sticky.text = value;
+  saveStickyNotes();
+  updateStickyPreview(targetId, value);
+}
+
+function createStickyRecord() {
+  const sticky = {
+    id: `sticky-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    text: '',
+    color: ['yellow', 'pink', 'blue', 'green'][stickyColorIndex % 4],
+    side: Math.random() < 0.5 ? 'left' : 'right',
+    top: 105 + Math.floor(Math.random() * 220),
+  };
+  stickyColorIndex += 1;
+  return sticky;
+}
+
+function ensureStoryForMainNote() {
+  if (activeStickyId !== null || !shouldAutoCreateStory || !note.value.trim()) return;
+
+  const sticky = createStickyRecord();
+  stickyNotes.push(sticky);
+  activeStickyId = sticky.id;
+  shouldAutoCreateStory = false;
+  saveStickyNotes();
+  renderStickyNotes();
 }
 
 function showToast(message) {
@@ -82,11 +186,14 @@ function updateCounts() {
 }
 
 function save() {
+  ensureStoryForMainNote();
   saveStatus.textContent = '저장 중...';
+  const targetId = activeStickyId;
+  const value = note.value;
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, note.value);
+      saveCurrentNote(targetId, value);
       saveStatus.textContent = '저장됨';
     } catch {
       saveStatus.textContent = '저장할 수 없음';
@@ -249,6 +356,38 @@ function renderKeyboard() {
   `;
 }
 
+function openSticky(id) {
+  const sticky = stickyNotes.find((item) => item.id === id);
+  if (!sticky) return;
+  commitComposition();
+  saveCurrentNote();
+  activeStickyId = sticky.id;
+  setText(sticky.text);
+  renderStickyNotes();
+  note.focus();
+}
+
+function openMainNote() {
+  if (activeStickyId === null) return;
+  commitComposition();
+  saveCurrentNote();
+  activeStickyId = null;
+  shouldAutoCreateStory = false;
+  setText(readSavedValue(STORAGE_KEY, ''));
+  shouldAutoCreateStory = !note.value.trim();
+  renderStickyNotes();
+  note.focus();
+}
+
+function addStickyNote() {
+  const sticky = createStickyRecord();
+  stickyNotes.push(sticky);
+  saveStickyNotes();
+  shouldAutoCreateStory = false;
+  openSticky(sticky.id);
+  showToast('새 이야기를 만들었어요');
+}
+
 function copyNote() {
   const text = note.value.trim();
   const fallbackCopy = () => {
@@ -268,6 +407,7 @@ function copyNote() {
 }
 
 note.value = readSavedValue(STORAGE_KEY, '');
+shouldAutoCreateStory = !note.value.trim();
 document.querySelector('#date-line').textContent = new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
   month: 'long',
@@ -276,6 +416,7 @@ document.querySelector('#date-line').textContent = new Intl.DateTimeFormat('ko-K
 }).format(new Date());
 updateCounts();
 renderKeyboard();
+renderStickyNotes();
 
 note.addEventListener('input', () => {
   composition = null;
@@ -320,12 +461,98 @@ keyboard.addEventListener('mousedown', (event) => {
 });
 
 document.querySelector('#copy-button').addEventListener('click', copyNote);
+newStoryButton.addEventListener('click', addStickyNote);
 document.querySelector('#clear-button').addEventListener('click', () => {
   if (!note.value) return;
   if (!window.confirm('이 노트를 모두 지울까요?')) return;
   composition = null;
+  if (activeStickyId === null) shouldAutoCreateStory = false;
   setText('');
+  if (activeStickyId === null) shouldAutoCreateStory = true;
   note.focus();
+});
+
+addStickyButton.addEventListener('click', addStickyNote);
+mainNoteButton.addEventListener('click', openMainNote);
+
+stickyNotesElement.addEventListener('click', (event) => {
+  if (suppressStickyClick) {
+    suppressStickyClick = false;
+    return;
+  }
+
+  const openButton = event.target.closest('[data-open-id]');
+  const deleteButton = event.target.closest('[data-delete-id]');
+
+  if (openButton) {
+    openSticky(openButton.dataset.openId);
+    return;
+  }
+
+  if (deleteButton) {
+    const id = deleteButton.dataset.deleteId;
+    stickyNotes = stickyNotes.filter((sticky) => sticky.id !== id);
+    saveStickyNotes();
+    if (activeStickyId === id) openMainNote();
+    renderStickyNotes();
+  }
+});
+
+let dragState = null;
+let suppressStickyClick = false;
+
+stickyNotesElement.addEventListener('pointerdown', (event) => {
+  const card = event.target.closest('.sticky-card');
+  if (!card || event.target.closest('.sticky-delete')) return;
+
+  const sticky = stickyNotes.find((item) => item.id === card.dataset.cardId);
+  if (!sticky) return;
+
+  const rect = card.getBoundingClientRect();
+  dragState = {
+    id: sticky.id,
+    card,
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    startX: event.clientX,
+    startY: event.clientY,
+    moved: false,
+  };
+  card.classList.add('dragging');
+});
+
+document.addEventListener('pointermove', (event) => {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+
+  const distance = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
+  if (distance > 5) {
+    dragState.moved = true;
+    suppressStickyClick = true;
+    dragState.card.classList.add('dragging');
+  }
+  if (!dragState.moved) return;
+
+  const sticky = stickyNotes.find((item) => item.id === dragState.id);
+  if (!sticky) return;
+
+  const container = document.querySelector('.content-layout').getBoundingClientRect();
+  const cardWidth = dragState.card.offsetWidth;
+  const cardHeight = dragState.card.offsetHeight;
+  const maxTop = Math.max(0, document.querySelector('.content-layout').scrollHeight - cardHeight);
+  const nextTop = Math.max(0, Math.min(maxTop, event.clientY - container.top - dragState.offsetY));
+  sticky.side = event.clientX < container.left + container.width / 2 ? 'left' : 'right';
+  sticky.top = nextTop;
+  applyStickyPosition(dragState.card, sticky);
+});
+
+document.addEventListener('pointerup', (event) => {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+
+  const sticky = stickyNotes.find((item) => item.id === dragState.id);
+  if (sticky && dragState.moved) saveStickyNotes();
+  dragState.card.classList.remove('dragging');
+  dragState = null;
 });
 
 document.querySelector('#keyboard-toggle').addEventListener('click', (event) => {

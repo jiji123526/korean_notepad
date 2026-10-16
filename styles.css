@@ -40,6 +40,16 @@ button { cursor: pointer; }
 .brand small { display: block; margin-top: 1px; color: #999d94; font: 9px 'DM Mono', monospace; }
 .top-actions { display: flex; align-items: center; gap: 14px; }
 .save-status { color: #8d968a; font: 10px 'DM Mono', monospace; }
+.new-story-button {
+  padding: 8px 10px;
+  color: #5f7867;
+  background: #e5ede3;
+  border: 1px solid #ceddcb;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.new-story-button:hover { color: #f8faf5; background: #6c8877; border-color: #6c8877; }
 .copy-button {
   padding: 9px 14px;
   color: #f8f8f4;
@@ -53,10 +63,16 @@ button { cursor: pointer; }
 .text-button { padding: 7px 0; color: #999c94; background: transparent; border: 0; font-size: 11px; }
 .text-button:hover { color: #465148; }
 
+.content-layout {
+  position: relative;
+  width: min(100% - 36px, 1220px);
+  align-items: start;
+  margin: 42px auto 40px;
+}
+.main-column { width: min(100%, 820px); margin: 0 auto; }
 .writing-area {
-  width: min(100% - 36px, 820px);
   min-height: 555px;
-  margin: 42px auto 34px;
+  margin: 0 0 34px;
   padding: 30px 48px 26px;
   display: flex;
   flex-direction: column;
@@ -99,8 +115,8 @@ button { cursor: pointer; }
 }
 
 .keyboard-section {
-  width: min(100% - 36px, 820px);
-  margin: 0 auto 40px;
+  width: 100%;
+  margin: 0;
   padding: 0 2px;
 }
 .keyboard-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
@@ -136,6 +152,108 @@ code { padding: 2px 5px; color: #677d6c; background: #e8eee7; border-radius: 3px
 .space-key { flex: 2; color: #8e968c; font-size: 10px; }
 .punctuation-key { flex: 0 1 53px; font-size: 16px; }
 
+.sticky-rail {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sticky-heading {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 180px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 13px;
+  pointer-events: auto;
+}
+.sticky-heading h2 { margin: 0; font-size: 13px; letter-spacing: -.03em; }
+.sticky-heading p { margin: 5px 0 0; color: #a0a298; font-size: 10px; }
+.add-sticky-button {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  color: #5f7867;
+  background: #e4ece2;
+  border: 0;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+}
+.add-sticky-button:hover { color: #f9faf5; background: #6c8877; }
+.main-note-button {
+  position: absolute;
+  top: 73px;
+  right: 0;
+  width: 180px;
+  padding: 9px 11px;
+  color: #657268;
+  background: #ebeae3;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: 10px;
+  text-align: left;
+  pointer-events: auto;
+}
+.main-note-button:hover, .main-note-button.active { color: #49604f; background: #e5ede3; border-color: #cbdac9; }
+.sticky-notes { position: absolute; inset: 0; pointer-events: none; }
+.sticky-card {
+  position: absolute;
+  width: 180px;
+  min-height: 112px;
+  padding: 14px 13px 12px;
+  pointer-events: auto;
+  cursor: grab;
+  box-shadow: 3px 5px 12px rgba(85, 76, 57, .12);
+  transform: rotate(-1deg);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.sticky-card:nth-child(even) { transform: rotate(1.2deg); }
+.sticky-card:hover, .sticky-card.active { z-index: 1; box-shadow: 4px 7px 16px rgba(85, 76, 57, .18); transform: rotate(0) translateY(-2px); }
+.sticky-card.dragging { z-index: 2; cursor: grabbing; opacity: .9; transform: rotate(0) scale(1.03); }
+.sticky-yellow { background: #fff1a8; }
+.sticky-pink { background: #ffd8d1; }
+.sticky-blue { background: #d7e9ef; }
+.sticky-green { background: #dbead3; }
+.sticky-open {
+  width: calc(100% - 12px);
+  min-height: 83px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  color: #5a5d50;
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+.sticky-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.sticky-open small { margin-top: auto; color: #9c9b82; font: 9px 'DM Mono', monospace; }
+.sticky-delete {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  padding: 1px 4px;
+  color: #a9a17b;
+  background: transparent;
+  border: 0;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0;
+}
+.sticky-card:hover .sticky-delete, .sticky-card.active .sticky-delete { opacity: 1; }
+.sticky-delete:hover { color: #785c52; }
+
 .toast {
   position: fixed;
   left: 50%;
@@ -155,9 +273,12 @@ code { padding: 2px 5px; color: #677d6c; background: #e8eee7; border-radius: 3px
 @media (max-width: 640px) {
   .topbar { height: 66px; padding: 0 17px; }
   .brand small, .save-status, .text-button { display: none; }
-  .writing-area { width: calc(100% - 24px); min-height: calc(100vh - 278px); margin: 18px auto 28px; padding: 24px 22px; }
+  .new-story-button { padding: 8px; font-size: 0; }
+  .new-story-button::after { content: '+'; font-size: 16px; line-height: 1; }
+  .content-layout { width: calc(100% - 24px); display: block; margin: 18px auto 28px; }
+  .writing-area { min-height: calc(100vh - 278px); margin: 0 0 28px; padding: 24px 22px; }
   .note { margin-top: 24px; --line-height: 33.6px; font-size: 16px; }
-  .keyboard-section { width: calc(100% - 24px); }
+  .keyboard-section { width: 100%; }
   .keyboard-heading { display: block; }
   .keyboard-toggle { margin-top: 10px; }
   .keyboard { padding: 8px; }
@@ -166,4 +287,14 @@ code { padding: 2px 5px; color: #677d6c; background: #e8eee7; border-radius: 3px
   .key span { font-size: 14px; }
   .key small { display: none; }
   .shift-key { flex: 0 1 64px; }
+  .sticky-rail { margin-top: 34px; }
+}
+
+@media (max-width: 1120px) {
+  .content-layout { width: min(100% - 36px, 820px); }
+  .sticky-rail { position: static; margin-top: 34px; pointer-events: auto; }
+  .sticky-heading { position: static; width: auto; }
+  .main-note-button { position: static; margin-top: 1px; }
+  .sticky-notes { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 14px; pointer-events: auto; }
+  .sticky-card { position: relative !important; top: auto !important; left: auto !important; right: auto !important; width: auto; }
 }

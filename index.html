@@ -20,38 +20,55 @@
 
         <div class="top-actions">
           <span id="save-status" class="save-status">저장됨</span>
+          <button id="new-story-button" class="new-story-button" type="button">+ 새 이야기</button>
           <button id="copy-button" class="copy-button" type="button">전체 복사</button>
           <button id="clear-button" class="text-button" type="button">지우기</button>
         </div>
       </header>
 
-      <section class="writing-area">
-        <div class="date-line" id="date-line"></div>
-        <textarea
-          id="note"
-          class="note"
-          spellcheck="false"
-          autocomplete="off"
-          autocapitalize="off"
-          placeholder="여기에 한국어로 써보세요..."
-          aria-label="노트 내용"
-        ></textarea>
-        <div class="note-footer">
-          <span>브라우저에 자동 저장됩니다</span>
-          <span id="character-count">0자</span>
-        </div>
-      </section>
+      <div class="content-layout">
+        <div class="main-column">
+          <section class="writing-area">
+            <div class="date-line" id="date-line"></div>
+            <textarea
+              id="note"
+              class="note"
+              spellcheck="false"
+              autocomplete="off"
+              autocapitalize="off"
+              placeholder="여기에 한국어로 써보세요..."
+              aria-label="노트 내용"
+            ></textarea>
+            <div class="note-footer">
+              <span>브라우저에 자동 저장됩니다</span>
+              <span id="character-count">0자</span>
+            </div>
+          </section>
 
-      <section class="keyboard-section">
-        <div class="keyboard-heading">
-          <div>
-            <h2>한글 자판</h2>
-            <p>영문 키보드로 입력하세요. <code>dkssud</code> → 안녕 · Shift + 자음 → ㄲ/ㄸ/ㅃ/ㅆ/ㅉ</p>
-          </div>
-          <button id="keyboard-toggle" class="keyboard-toggle" type="button" aria-expanded="true">자판 숨기기</button>
+          <section class="keyboard-section">
+            <div class="keyboard-heading">
+              <div>
+                <h2>한글 자판</h2>
+                <p>영문 키보드로 입력하세요. <code>dkssud</code> → 안녕 · Shift + 자음 → ㄲ/ㄸ/ㅃ/ㅆ/ㅉ</p>
+              </div>
+              <button id="keyboard-toggle" class="keyboard-toggle" type="button" aria-expanded="true">자판 숨기기</button>
+            </div>
+            <div id="keyboard" class="keyboard" aria-label="한글 2벌식 자판"></div>
+          </section>
         </div>
-        <div id="keyboard" class="keyboard" aria-label="한글 2벌식 자판"></div>
-      </section>
+
+        <aside class="sticky-rail" aria-label="빠른 메모">
+          <div class="sticky-heading">
+            <div>
+              <h2>이야기</h2>
+              <p>클릭해서 이어 쓰기</p>
+            </div>
+            <button id="add-sticky-button" class="add-sticky-button" type="button" aria-label="새 이야기 추가">+</button>
+          </div>
+          <button id="main-note-button" class="main-note-button active" type="button">본문 노트</button>
+          <div id="sticky-notes" class="sticky-notes"></div>
+        </aside>
+      </div>
     </main>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
