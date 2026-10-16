@@ -11,6 +11,7 @@ Open `index.html` in a browser. No server, backend, package install, or build st
 - Repeated unshifted consonants are not auto-converted into double letters; they stay available as final/next-syllable consonants.
 - Use the on-screen keyboard if you do not remember a key.
 - Click `전체 복사` to copy the note into another app.
+- Select text and use the `B` / `I` buttons or `Ctrl/Cmd+B` and `Ctrl/Cmd+I` for bold and italic formatting.
 - The note is saved automatically in the browser's `localStorage`.
 - Add quick sticky notes in the page margin. Click a sticky note to open and edit it in the main editor.
 - Click `+ 새 이야기` to create a new centered story with its own linked sticky note.

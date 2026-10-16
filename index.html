@@ -31,15 +31,22 @@
         <div class="main-column">
           <section class="writing-area">
             <div class="date-line" id="date-line"></div>
-            <textarea
+            <div class="format-toolbar" aria-label="텍스트 서식">
+              <div class="format-buttons">
+                <button id="bold-button" class="format-button" type="button" aria-label="굵게"><strong>B</strong></button>
+                <button id="italic-button" class="format-button" type="button" aria-label="기울임"><em>I</em></button>
+              </div>
+              <span>Ctrl/Cmd + B · Ctrl/Cmd + I</span>
+            </div>
+            <div
               id="note"
               class="note"
+              contenteditable="true"
+              role="textbox"
+              aria-multiline="true"
+              data-placeholder="여기에 한국어로 써보세요..."
               spellcheck="false"
-              autocomplete="off"
-              autocapitalize="off"
-              placeholder="여기에 한국어로 써보세요..."
-              aria-label="노트 내용"
-            ></textarea>
+            ></div>
             <div class="note-footer">
               <span>브라우저에 자동 저장됩니다</span>
               <span id="character-count">0자</span>

@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'simple-korean-note';
+const HTML_STORAGE_KEY = 'simple-korean-note-html';
 const STICKY_STORAGE_KEY = 'simple-korean-sticky-notes';
 const EDITOR_SIZE_KEY = 'simple-korean-editor-size';
 const INPUT_MODE_KEY = 'simple-korean-input-mode';
@@ -14,6 +15,8 @@ const stickyNotesElement = document.querySelector('#sticky-notes');
 const inputModeButton = document.querySelector('#input-mode-button');
 const newStoryButton = document.querySelector('#new-story-button');
 const mainNoteButton = document.querySelector('#main-note-button');
+const boldButton = document.querySelector('#bold-button');
+const italicButton = document.querySelector('#italic-button');
 const saveStatus = document.querySelector('#save-status');
 const characterCount = document.querySelector('#character-count');
 const toast = document.querySelector('#toast');
@@ -129,6 +132,74 @@ function readSavedValue(key, fallback) {
   }
 }
 
+function getNoteText() {
+  return note.textContent || '';
+}
+
+function getSelectionOffsets() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount || !note.contains(selection.anchorNode)) {
+    const length = getNoteText().length;
+    return { start: length, end: length };
+  }
+
+  const range = selection.getRangeAt(0);
+  const startRange = range.cloneRange();
+  startRange.selectNodeContents(note);
+  startRange.setEnd(range.startContainer, range.startOffset);
+  const endRange = range.cloneRange();
+  endRange.selectNodeContents(note);
+  endRange.setEnd(range.endContainer, range.endOffset);
+  return { start: startRange.toString().length, end: endRange.toString().length };
+}
+
+function findTextPosition(offset) {
+  const walker = document.createTreeWalker(note, NodeFilter.SHOW_TEXT);
+  let node;
+  let remaining = offset;
+
+  while ((node = walker.nextNode())) {
+    if (remaining <= node.nodeValue.length) {
+      return { node, offset: remaining };
+    }
+    remaining -= node.nodeValue.length;
+  }
+
+  return { node: note, offset: note.childNodes.length };
+}
+
+function setSelectionOffsets(start, end = start) {
+  const selection = window.getSelection();
+  const range = document.createRange();
+  const startPosition = findTextPosition(start);
+  const endPosition = findTextPosition(end);
+  range.setStart(startPosition.node, startPosition.offset);
+  range.setEnd(endPosition.node, endPosition.offset);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  note.focus();
+}
+
+function setNoteContent(html, fallbackText = '', caret = fallbackText.length) {
+  note.innerHTML = html || '';
+  if (!note.textContent && fallbackText) note.textContent = fallbackText;
+  setSelectionOffsets(caret, caret);
+}
+
+function replaceTextRange(value, start, end) {
+  const selection = window.getSelection();
+  const range = document.createRange();
+  const startPosition = findTextPosition(start);
+  const endPosition = findTextPosition(end);
+  range.setStart(startPosition.node, startPosition.offset);
+  range.setEnd(endPosition.node, endPosition.offset);
+  range.deleteContents();
+  if (value) range.insertNode(document.createTextNode(value));
+  setSelectionOffsets(start + value.length, start + value.length);
+  updateCounts();
+  save();
+}
+
 function readStickyNotes() {
   try {
     const saved = JSON.parse(localStorage.getItem(STICKY_STORAGE_KEY) || '[]');
@@ -189,15 +260,17 @@ function applyStickyPosition(card, sticky) {
   card.style.right = sticky.side === 'right' ? `${sticky.x}px` : 'auto';
 }
 
-function saveCurrentNote(targetId = activeStickyId, value = note.value) {
+function saveCurrentNote(targetId = activeStickyId, value = getNoteText(), html = note.innerHTML) {
   if (targetId === null) {
     localStorage.setItem(STORAGE_KEY, value);
+    localStorage.setItem(HTML_STORAGE_KEY, html);
     return;
   }
 
   const sticky = stickyNotes.find((item) => item.id === targetId);
   if (!sticky) return;
   sticky.text = value;
+  sticky.html = html;
   saveStickyNotes();
   updateStickyPreview(targetId, value);
 }
@@ -216,7 +289,7 @@ function createStickyRecord() {
 }
 
 function ensureStoryForMainNote() {
-  if (activeStickyId !== null || !shouldAutoCreateStory || !note.value.trim()) return;
+  if (activeStickyId !== null || !shouldAutoCreateStory || !getNoteText().trim()) return;
 
   const sticky = createStickyRecord();
   stickyNotes.push(sticky);
@@ -234,18 +307,19 @@ function showToast(message) {
 }
 
 function updateCounts() {
-  characterCount.textContent = `${note.value.replace(/\s/g, '').length.toLocaleString('ko-KR')}자`;
+  characterCount.textContent = `${getNoteText().replace(/\s/g, '').length.toLocaleString('ko-KR')}자`;
 }
 
 function save() {
   ensureStoryForMainNote();
   saveStatus.textContent = '저장 중...';
   const targetId = activeStickyId;
-  const value = note.value;
+  const value = getNoteText();
+  const html = note.innerHTML;
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
     try {
-      saveCurrentNote(targetId, value);
+      saveCurrentNote(targetId, value, html);
       saveStatus.textContent = '저장됨';
     } catch {
       saveStatus.textContent = '저장할 수 없음';
@@ -254,8 +328,7 @@ function save() {
 }
 
 function setText(value, caret = value.length) {
-  note.value = value;
-  note.setSelectionRange(caret, caret);
+  setNoteContent('', value, caret);
   updateCounts();
   save();
 }
@@ -269,14 +342,11 @@ function composeSyllable(initial, vowel, final = '') {
 }
 
 function replaceComposition(value, start, end) {
-  const before = note.value.slice(0, start);
-  const after = note.value.slice(end);
-  setText(before + value + after, start + value.length);
+  replaceTextRange(value, start, end);
 }
 
 function beginComposition(type, value) {
-  const start = note.selectionStart;
-  const end = note.selectionEnd;
+  const { start, end } = getSelectionOffsets();
   composition = { start, value, initial: type === 'L' ? value : '', vowel: type === 'V' ? value : '', final: '' };
   replaceComposition(value, start, end);
 }
@@ -296,8 +366,7 @@ function updateComposition(next) {
 
 function insertPlain(value) {
   commitComposition();
-  const start = note.selectionStart;
-  const end = note.selectionEnd;
+  const { start, end } = getSelectionOffsets();
   replaceComposition(value, start, end);
 }
 
@@ -330,14 +399,15 @@ function processJamo(type, value) {
       updateComposition({ final: remainingFinal });
       const insertionPoint = composition.start + composition.value.length;
       commitComposition();
-      note.setSelectionRange(insertionPoint, insertionPoint);
+      setSelectionOffsets(insertionPoint);
       beginComposition('L', movableFinal);
       processJamo('V', value);
       return;
     }
 
     commitComposition();
-    note.setSelectionRange(note.selectionStart, note.selectionStart);
+    const { start } = getSelectionOffsets();
+    setSelectionOffsets(start);
     beginComposition('V', value);
     return;
   }
@@ -414,7 +484,8 @@ function openSticky(id) {
   commitComposition();
   saveCurrentNote();
   activeStickyId = sticky.id;
-  setText(sticky.text);
+  setNoteContent(sticky.html || '', sticky.text);
+  updateCounts();
   renderStickyNotes();
   note.focus();
 }
@@ -425,8 +496,10 @@ function openMainNote() {
   saveCurrentNote();
   activeStickyId = null;
   shouldAutoCreateStory = false;
-  setText(readSavedValue(STORAGE_KEY, ''));
-  shouldAutoCreateStory = !note.value.trim();
+  const text = readSavedValue(STORAGE_KEY, '');
+  setNoteContent(readSavedValue(HTML_STORAGE_KEY, ''), text);
+  updateCounts();
+  shouldAutoCreateStory = !text.trim();
   renderStickyNotes();
   note.focus();
 }
@@ -441,10 +514,14 @@ function addStickyNote() {
 }
 
 function copyNote() {
-  const text = note.value.trim();
+  const text = getNoteText().trim();
   const fallbackCopy = () => {
     note.focus();
-    note.select();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(note);
+    selection.removeAllRanges();
+    selection.addRange(range);
     document.execCommand('copy');
     showToast('노트를 클립보드에 복사했어요');
   };
@@ -458,8 +535,9 @@ function copyNote() {
   }
 }
 
-note.value = readSavedValue(STORAGE_KEY, '');
-shouldAutoCreateStory = !note.value.trim();
+const savedNoteText = readSavedValue(STORAGE_KEY, '');
+setNoteContent(readSavedValue(HTML_STORAGE_KEY, ''), savedNoteText);
+shouldAutoCreateStory = !savedNoteText.trim();
 const editorSize = readEditorSize();
 setEditorSize(editorSize.width, editorSize.height, false);
 document.querySelector('#date-line').textContent = new Intl.DateTimeFormat('ko-KR', {
@@ -479,16 +557,34 @@ note.addEventListener('input', () => {
   save();
 });
 
-note.addEventListener('select', () => {
-  if (note.selectionStart !== note.selectionEnd) commitComposition();
+document.addEventListener('selectionchange', () => {
+  const selection = window.getSelection();
+  if (!selection.rangeCount || !note.contains(selection.anchorNode)) return;
+  if (!selection.isCollapsed) commitComposition();
+  updateFormatButtons();
 });
 
 note.addEventListener('keydown', (event) => {
+  const isShortcut = event.ctrlKey || event.metaKey;
+
+  if (isShortcut && !event.altKey && ['b', 'i'].includes(event.key.toLowerCase())) {
+    event.preventDefault();
+    applyFormat(event.key.toLowerCase() === 'b' ? 'bold' : 'italic');
+    return;
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    insertPlain('\n');
+    return;
+  }
+
   if (inputMode !== 'ko') return;
 
-  const hasSelection = note.selectionStart !== note.selectionEnd;
+  const selection = getSelectionOffsets();
+  const hasSelectedText = selection.start !== selection.end;
   if (composition && (event.key === 'Backspace' || event.key === 'Delete')) {
-    if (hasSelection) {
+    if (hasSelectedText) {
       commitComposition();
       return;
     }
@@ -530,6 +626,32 @@ keyboard.addEventListener('mousedown', (event) => {
 });
 
 document.querySelector('#copy-button').addEventListener('click', copyNote);
+function updateFormatButtons() {
+  for (const [button, command] of [[boldButton, 'bold'], [italicButton, 'italic']]) {
+    try {
+      button.classList.toggle('active', document.queryCommandState(command));
+    } catch {
+      button.classList.remove('active');
+    }
+  }
+}
+
+function applyFormat(command) {
+  commitComposition();
+  note.focus();
+  document.execCommand(command, false, null);
+  updateFormatButtons();
+  updateCounts();
+  save();
+}
+
+for (const [button, command] of [[boldButton, 'bold'], [italicButton, 'italic']]) {
+  button.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+    applyFormat(command);
+  });
+}
+
 newStoryButton.addEventListener('click', addStickyNote);
 inputModeButton.addEventListener('click', () => {
   commitComposition();
@@ -543,7 +665,7 @@ inputModeButton.addEventListener('click', () => {
   note.focus();
 });
 document.querySelector('#clear-button').addEventListener('click', () => {
-  if (!note.value) return;
+  if (!getNoteText()) return;
   if (!window.confirm('이 노트를 모두 지울까요?')) return;
   composition = null;
   if (activeStickyId === null) shouldAutoCreateStory = false;

@@ -93,13 +93,38 @@ button { cursor: pointer; }
   box-shadow: 0 10px 32px rgba(74, 69, 55, .04);
 }
 .date-line { color: #aaa99f; font: 10px 'DM Mono', monospace; }
+.format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 25px;
+  color: #b1b2aa;
+  font: 9px 'DM Mono', monospace;
+}
+.format-buttons { display: flex; gap: 4px; }
+.format-button {
+  width: 25px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: #68736a;
+  background: #f0f1eb;
+  border: 1px solid #e0e3da;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.format-button:hover, .format-button.active {
+  color: #f8faf5;
+  background: #6c8877;
+  border-color: #6c8877;
+}
 .note {
   flex: 1;
   width: 100%;
   min-height: 350px;
-  margin-top: 32px;
+  margin-top: 15px;
   padding: 0;
-  resize: none;
+  overflow-y: auto;
   color: #60675e;
   --line-height: 38.25px;
   background-color: transparent;
@@ -116,8 +141,14 @@ button { cursor: pointer; }
   outline: 0;
   font: 17px/var(--line-height) Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   letter-spacing: -.025em;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
-.note::placeholder { color: #c7c8c0; }
+.note:empty::before {
+  content: attr(data-placeholder);
+  color: #c7c8c0;
+  pointer-events: none;
+}
 .note-footer {
   display: flex;
   justify-content: space-between;
@@ -293,7 +324,8 @@ code { padding: 2px 5px; color: #677d6c; background: #e8eee7; border-radius: 3px
   .new-story-button::after { content: '+'; font-size: 16px; line-height: 1; }
   .content-layout { width: calc(100% - 24px); display: block; margin: 18px auto 28px; }
   .writing-area { min-height: calc(100vh - 278px); margin: 0 0 28px; padding: 24px 22px; }
-  .note { margin-top: 24px; --line-height: 33.6px; font-size: 16px; }
+  .format-toolbar { margin-top: 20px; }
+  .note { margin-top: 12px; --line-height: 33.6px; font-size: 16px; }
   .keyboard-section { width: 100%; }
   .keyboard-heading { display: block; }
   .keyboard-toggle { margin-top: 10px; }
