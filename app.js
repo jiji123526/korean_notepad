@@ -1,10 +1,13 @@
 const STORAGE_KEY = 'simple-korean-note';
 const STICKY_STORAGE_KEY = 'simple-korean-sticky-notes';
+const EDITOR_SIZE_KEY = 'simple-korean-editor-size';
 
 const note = document.querySelector('#note');
 const keyboard = document.querySelector('#keyboard');
 const contentLayout = document.querySelector('.content-layout');
 const mainColumn = document.querySelector('.main-column');
+const writingArea = document.querySelector('.writing-area');
+const resizeHandle = document.querySelector('#resize-handle');
 const stickyNotesElement = document.querySelector('#sticky-notes');
 const newStoryButton = document.querySelector('#new-story-button');
 const mainNoteButton = document.querySelector('#main-note-button');
@@ -71,6 +74,39 @@ let activeStickyId = null;
 let stickyNotes = readStickyNotes();
 let stickyColorIndex = stickyNotes.length;
 let shouldAutoCreateStory = false;
+let resizeState = null;
+
+function readEditorSize() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(EDITOR_SIZE_KEY) || '{}');
+    return {
+      width: Number.isFinite(saved.width) ? saved.width : 820,
+      height: Number.isFinite(saved.height) ? saved.height : 555,
+    };
+  } catch {
+    return { width: 820, height: 555 };
+  }
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function setEditorSize(width, height, persist = true) {
+  const maxWidth = Math.max(720, Math.min(980, window.innerWidth - 100));
+  const nextWidth = clamp(width, 620, maxWidth);
+  const nextHeight = clamp(height, 420, 1200);
+  contentLayout.style.setProperty('--editor-width', `${nextWidth}px`);
+  writingArea.style.setProperty('--editor-height', `${nextHeight}px`);
+
+  if (persist) {
+    try {
+      localStorage.setItem(EDITOR_SIZE_KEY, JSON.stringify({ width: nextWidth, height: nextHeight }));
+    } catch {
+      // The editor remains resized for this session even if storage is unavailable.
+    }
+  }
+}
 
 function readSavedValue(key, fallback) {
   try {
@@ -411,6 +447,8 @@ function copyNote() {
 
 note.value = readSavedValue(STORAGE_KEY, '');
 shouldAutoCreateStory = !note.value.trim();
+const editorSize = readEditorSize();
+setEditorSize(editorSize.width, editorSize.height, false);
 document.querySelector('#date-line').textContent = new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
   month: 'long',
@@ -488,6 +526,38 @@ document.querySelector('#clear-button').addEventListener('click', () => {
 });
 
 mainNoteButton.addEventListener('click', openMainNote);
+
+resizeHandle.addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  resizeState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startWidth: writingArea.getBoundingClientRect().width,
+    startHeight: writingArea.getBoundingClientRect().height,
+  };
+  resizeHandle.setPointerCapture?.(event.pointerId);
+  writingArea.classList.add('resizing');
+});
+
+resizeHandle.addEventListener('pointermove', (event) => {
+  if (!resizeState || event.pointerId !== resizeState.pointerId) return;
+  setEditorSize(
+    resizeState.startWidth + event.clientX - resizeState.startX,
+    resizeState.startHeight + event.clientY - resizeState.startY,
+  );
+});
+
+resizeHandle.addEventListener('pointerup', (event) => {
+  if (!resizeState || event.pointerId !== resizeState.pointerId) return;
+  resizeState = null;
+  writingArea.classList.remove('resizing');
+});
+
+resizeHandle.addEventListener('pointercancel', () => {
+  resizeState = null;
+  writingArea.classList.remove('resizing');
+});
 
 stickyNotesElement.addEventListener('click', (event) => {
   const openButton = event.target.closest('[data-open-id]');

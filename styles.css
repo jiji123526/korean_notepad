@@ -69,9 +69,10 @@ button { cursor: pointer; }
   align-items: start;
   margin: 42px auto 40px;
 }
-.main-column { width: min(100%, 820px); margin: 0 auto; }
+.main-column { width: min(100%, var(--editor-width, 820px)); margin: 0 auto; }
 .writing-area {
-  min-height: 555px;
+  position: relative;
+  min-height: var(--editor-height, 555px);
   margin: 0 0 34px;
   padding: 30px 48px 26px;
   display: flex;
@@ -113,6 +114,20 @@ button { cursor: pointer; }
   color: #b1b2aa;
   font: 9px 'DM Mono', monospace;
 }
+.resize-handle {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: linear-gradient(135deg, transparent 0 46%, #c9c9bf 47% 51%, transparent 52% 64%, #c9c9bf 65% 69%, transparent 70%);
+  border: 0;
+  cursor: nwse-resize;
+  opacity: .65;
+}
+.resize-handle:hover, .writing-area.resizing .resize-handle { opacity: 1; }
+.writing-area.resizing { user-select: none; }
 
 .keyboard-section {
   width: 100%;
@@ -284,4 +299,5 @@ code { padding: 2px 5px; color: #677d6c; background: #e8eee7; border-radius: 3px
   .main-note-button { position: static; margin-top: 1px; }
   .sticky-notes { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 14px; pointer-events: auto; }
   .sticky-card { position: relative !important; top: auto !important; left: auto !important; right: auto !important; width: auto; }
+  .resize-handle { display: none; }
 }
