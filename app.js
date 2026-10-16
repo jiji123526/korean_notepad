@@ -1,14 +1,17 @@
 const STORAGE_KEY = 'simple-korean-note';
 const STICKY_STORAGE_KEY = 'simple-korean-sticky-notes';
 const EDITOR_SIZE_KEY = 'simple-korean-editor-size';
+const INPUT_MODE_KEY = 'simple-korean-input-mode';
 
 const note = document.querySelector('#note');
 const keyboard = document.querySelector('#keyboard');
+const keyboardSection = document.querySelector('.keyboard-section');
 const contentLayout = document.querySelector('.content-layout');
 const mainColumn = document.querySelector('.main-column');
 const writingArea = document.querySelector('.writing-area');
 const resizeHandle = document.querySelector('#resize-handle');
 const stickyNotesElement = document.querySelector('#sticky-notes');
+const inputModeButton = document.querySelector('#input-mode-button');
 const newStoryButton = document.querySelector('#new-story-button');
 const mainNoteButton = document.querySelector('#main-note-button');
 const saveStatus = document.querySelector('#save-status');
@@ -75,6 +78,7 @@ let stickyNotes = readStickyNotes();
 let stickyColorIndex = stickyNotes.length;
 let shouldAutoCreateStory = false;
 let resizeState = null;
+let inputMode = readSavedValue(INPUT_MODE_KEY, 'ko');
 
 function readEditorSize() {
   try {
@@ -106,6 +110,15 @@ function setEditorSize(width, height, persist = true) {
       // The editor remains resized for this session even if storage is unavailable.
     }
   }
+}
+
+function updateInputMode() {
+  const koreanMode = inputMode === 'ko';
+  inputModeButton.textContent = koreanMode ? '한국어' : 'English';
+  inputModeButton.setAttribute('aria-pressed', String(koreanMode));
+  inputModeButton.setAttribute('aria-label', koreanMode ? '영어 입력으로 전환' : '한국어 입력으로 전환');
+  inputModeButton.classList.toggle('english', !koreanMode);
+  keyboardSection.classList.toggle('english-mode', !koreanMode);
 }
 
 function readSavedValue(key, fallback) {
@@ -458,6 +471,7 @@ document.querySelector('#date-line').textContent = new Intl.DateTimeFormat('ko-K
 updateCounts();
 renderKeyboard();
 renderStickyNotes();
+updateInputMode();
 
 note.addEventListener('input', () => {
   composition = null;
@@ -470,6 +484,8 @@ note.addEventListener('select', () => {
 });
 
 note.addEventListener('keydown', (event) => {
+  if (inputMode !== 'ko') return;
+
   const hasSelection = note.selectionStart !== note.selectionEnd;
   if (composition && (event.key === 'Backspace' || event.key === 'Delete')) {
     if (hasSelection) {
@@ -515,6 +531,17 @@ keyboard.addEventListener('mousedown', (event) => {
 
 document.querySelector('#copy-button').addEventListener('click', copyNote);
 newStoryButton.addEventListener('click', addStickyNote);
+inputModeButton.addEventListener('click', () => {
+  commitComposition();
+  inputMode = inputMode === 'ko' ? 'en' : 'ko';
+  try {
+    localStorage.setItem(INPUT_MODE_KEY, inputMode);
+  } catch {
+    // The switch still works for this session if storage is unavailable.
+  }
+  updateInputMode();
+  note.focus();
+});
 document.querySelector('#clear-button').addEventListener('click', () => {
   if (!note.value) return;
   if (!window.confirm('이 노트를 모두 지울까요?')) return;
