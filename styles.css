@@ -5,7 +5,7 @@
   color: #2f352f;
   background: #f5f2eb;
   font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-synthesis: none;
+  font-synthesis: weight style;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -149,6 +149,7 @@ button { cursor: pointer; }
   color: #c7c8c0;
   pointer-events: none;
 }
+.note em, .note i { font-style: italic; }
 .note-footer {
   display: flex;
   justify-content: space-between;
