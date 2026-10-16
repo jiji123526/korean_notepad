@@ -613,6 +613,7 @@ function addStickyNote() {
 
 function copyNote() {
   const text = getNoteText().trim();
+  const html = clipboardHtml();
   const fallbackCopy = () => {
     note.focus();
     const selection = window.getSelection();
@@ -621,16 +622,53 @@ function copyNote() {
     selection.removeAllRanges();
     selection.addRange(range);
     document.execCommand('copy');
-    showToast('노트를 클립보드에 복사했어요');
+    showToast('서식과 함께 복사했어요');
   };
 
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text)
-      .then(() => showToast('노트를 클립보드에 복사했어요'))
-      .catch(fallbackCopy);
-  } else {
+  if (!navigator.clipboard) {
     fallbackCopy();
+    return;
   }
+
+  if (window.ClipboardItem) {
+    try {
+      const clipboardItem = new ClipboardItem({
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' }),
+      });
+      navigator.clipboard.write([clipboardItem])
+        .then(() => showToast('서식과 함께 복사했어요'))
+        .catch(fallbackCopy);
+      return;
+    } catch {
+      // Fall through to plain-text clipboard support.
+    }
+  }
+
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('텍스트를 복사했어요'))
+    .catch(fallbackCopy);
+}
+
+function clipboardHtml() {
+  const clone = note.cloneNode(true);
+  const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+
+  while ((node = walker.nextNode())) textNodes.push(node);
+
+  textNodes.forEach((textNode) => {
+    if (!textNode.nodeValue.includes('\n')) return;
+    const fragment = document.createDocumentFragment();
+    textNode.nodeValue.split('\n').forEach((part, index) => {
+      if (index > 0) fragment.appendChild(document.createElement('br'));
+      fragment.appendChild(document.createTextNode(part));
+    });
+    textNode.replaceWith(fragment);
+  });
+
+  return clone.innerHTML;
 }
 
 const savedNoteText = readSavedValue(STORAGE_KEY, '');
